@@ -2,7 +2,6 @@
  *     { id, name, summary, episodesUrl }
  */
 
-
 /** Search Shows
  *    - given a search term, search for tv shows that
  *      match that query.  The function is async show it
@@ -17,18 +16,41 @@
         image: <an image from the show data, or a default imege if no image exists, (image isn't needed until later)>
       }
  */
+const missingImg = "https://tinyurl.com/tv-missing";
 async function searchShows(query) {
   // TODO: Make an ajax request to the searchShows api.  Remove
   // hard coded data.
 
-  return [
-    {
-      id: 1767,
-      name: "The Bletchley Circle",
-      summary: "<p><b>The Bletchley Circle</b> follows the journey of four ordinary women with extraordinary skills that helped to end World War II.</p><p>Set in 1952, Susan, Millie, Lucy and Jean have returned to their normal lives, modestly setting aside the part they played in producing crucial intelligence, which helped the Allies to victory and shortened the war. When Susan discovers a hidden code behind an unsolved murder she is met by skepticism from the police. She quickly realises she can only begin to crack the murders and bring the culprit to justice with her former friends.</p>",
-      image: "http://static.tvmaze.com/uploads/images/medium_portrait/147/369403.jpg"
-    }
-  ]
+  // return [
+  //   {
+  //     id: 1767,
+  //     name: "The Bletchley Circle",
+  //     summary: "<p><b>The Bletchley Circle</b> follows the journey of four ordinary women with extraordinary skills that helped to end World War II.</p><p>Set in 1952, Susan, Millie, Lucy and Jean have returned to their normal lives, modestly setting aside the part they played in producing crucial intelligence, which helped the Allies to victory and shortened the war. When Susan discovers a hidden code behind an unsolved murder she is met by skepticism from the police. She quickly realises she can only begin to crack the murders and bring the culprit to justice with her former friends.</p>",
+  //     image: "http://static.tvmaze.com/uploads/images/medium_portrait/147/369403.jpg"
+  //   }
+  // ]
+
+  const response = await axios.get(`http://api.tvmaze.com/search/shows?q=${query}`);
+ 
+  // return [
+  //   {
+  //     id: response.data[0].show.id,
+  //     name: response.data[0].show.name,
+  //     summary: response.data[0].show.summary,
+  //     image: response.data[0].show.image.medium || missingImg
+  //   }
+  // ]
+
+  let shows = response.data.map((result) => {
+    let show = result.show;
+    return {
+      id: show.id,
+      name: show.name,
+      summary: show.summary,
+      image: show.image ? show.image.medium : missingImg,
+    };
+  });
+  return shows;
 }
 
 
@@ -48,6 +70,8 @@ function populateShows(shows) {
            <div class="card-body">
              <h5 class="card-title">${show.name}</h5>
              <p class="card-text">${show.summary}</p>
+             <img class="card-img-top" src=${show.image}>
+             <button class="btn btn-info get-episodes">Show episodes</button>
            </div>
          </div>
        </div>
@@ -77,14 +101,55 @@ $("#search-form").on("submit", async function handleSearch (evt) {
 });
 
 
+
 /** Given a show ID, return list of episodes:
  *      { id, name, season, number }
  */
 
-async function getEpisodes(id) {
+ async function getEpisodes(id) {
   // TODO: get episodes from tvmaze
   //       you can get this by making GET request to
   //       http://api.tvmaze.com/shows/SHOW-ID-HERE/episodes
 
   // TODO: return array-of-episode-info, as described in docstring above
+ 
+  const response = await axios.get(`http://api.tvmaze.com/shows/${id}/episodes`);
+
+  let episodes = response.data.map((episode) => ({
+  
+      id: episode.id,
+      name: episode.name,
+      season: episode.season,
+      number: episode.number,
+
+  }));
+  return episodes;
 }
+
+
+function populateEpisodes(episodes) {
+  const $episodesList = $("#episodes-list");
+  $episodesList.empty();
+
+  for (let episode of episodes) {
+    let $item = $(`
+    <li>
+    ${episode.name}
+    (season ${episode.season}, episode ${episode.number})
+    </li>
+    `);
+    $episodesList.append($item); 
+  }
+  $("#episodes-area").show();
+}
+
+// when didnt it work with the event handler just attached to the button only and not an event delgation?
+$("#shows-list").on("click", ".get-episodes", async function handleEpisodeClick(evt) {
+  // evt.preventDefault();
+  // evt.target is button, look at the card classes
+
+  let showID = $(evt.target).closest(".Show").data("show-id")
+  console.log(showID)
+  let episodes = await getEpisodes(showID);
+  populateEpisodes(episodes);
+})
